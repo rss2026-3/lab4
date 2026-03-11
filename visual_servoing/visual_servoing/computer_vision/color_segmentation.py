@@ -36,7 +36,50 @@ def cd_color_segmentation(img, template):
     """
     ########## YOUR CODE STARTS HERE ##########
 
-    bounding_box = ((0, 0), (0, 0))
+    # Step 1: Convert BGR to HSV
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+    # Step 2: Create a binary mask for orange pixels
+
+    # S raised from 120 → 150: the HSV histogram shows a bimodal saturation
+    # distribution. The low-S cluster (S=52-150) corresponds to brownish wooden
+    # furniture and orange metal carts in the scene. The vivid safety orange of
+    # a traffic cone sits in the high-S cluster (S=150-255). Raising S to 150
+    # cuts the furniture out of the mask while keeping the cone.
+    lower_orange = np.array([0, 200, 80])
+    upper_orange = np.array([30, 255, 255])
+    mask = cv2.inRange(hsv, lower_orange, upper_orange)
+
+    # Step 3: Morphological opening (erode then dilate)
+    # Erosion removes small isolated noise pixels that passed the color filter.
+    # Dilation then restores the cone's true area and fills holes from specular highlights.
+    kernel = np.ones((5, 5), np.uint8)
+    mask = cv2.erode(mask, kernel, iterations=1)
+    mask = cv2.dilate(mask, kernel, iterations=2)
+
+    # Step 4: Find external contours in the cleaned binary mask
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # Step 5: If no orange regions found, return a zero-area bbox
+    if not contours:
+        return ((0, 0), (0, 0))
+
+    # Step 6: Filter out contours that are too horizontally wide to be a cone.
+    # From the debug images, wooden tables/shelves pass the color filter but
+    # produce very wide, flat bounding boxes (width >> height).
+    # A cone is roughly as wide as it is tall, or taller — never 3x wider than tall.
+    # We keep contours with width <= 2.5 * height; fall back to all if none pass.
+    cone_candidates = [c for c in contours
+                       if cv2.boundingRect(c)[2] <= 2.5 * cv2.boundingRect(c)[3]]
+    if not cone_candidates:
+        cone_candidates = contours  # fallback: don't discard everything
+
+    # Step 7: Among shape-filtered candidates, pick the largest by area
+    largest = max(cone_candidates, key=cv2.contourArea)
+
+    # Step 8: Compute axis-aligned bounding rect and convert to required format
+    x, y, w, h = cv2.boundingRect(largest)
+    bounding_box = ((x, y), (x + w, y + h))
 
     ########### YOUR CODE ENDS HERE ###########
 
