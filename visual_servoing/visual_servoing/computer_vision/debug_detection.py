@@ -1,6 +1,6 @@
 """
 Visual Debugger for Cone Color Segmentation
---------------------------------------------
+
 Shows side-by-side for each test image:
   1. Original image with ground truth (green) and detected (red) bounding boxes
   2. HSV mask after color thresholding
@@ -23,7 +23,7 @@ from color_segmentation import cd_color_segmentation
 
 CSV_PATH = "./test_images_cone/test_images_cone.csv"
 
-# ── Load ground truth ──────────────────────────────────────────────────────────
+# ── Load ground truth ──
 ground_truth = {}
 with open(CSV_PATH) as f:
     for row in csv.reader(f):
@@ -62,7 +62,7 @@ def debug_image(img_path, bbox_true):
 
     mask_color, mask_morph = get_intermediate_masks(img)
 
-    # Draw bounding boxes on a copy
+    # draw bounding boxes on a copy
     display = img.copy()
     cv2.rectangle(display, bbox_true[0], bbox_true[1], (0, 255, 0), 2)   # green = ground truth
     cv2.rectangle(display, bbox_est[0], bbox_est[1], (0, 0, 255), 2)      # red   = detected
@@ -71,17 +71,17 @@ def debug_image(img_path, bbox_true):
     cv2.putText(display, "GREEN=truth  RED=detected", (10, 50),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 200, 200), 1)
 
-    # Convert masks to BGR so we can stack them
+    # convert masks to BGR so we can stack them
     mask_color_bgr = cv2.cvtColor(mask_color, cv2.COLOR_GRAY2BGR)
     mask_morph_bgr = cv2.cvtColor(mask_morph, cv2.COLOR_GRAY2BGR)
 
-    # Label masks
+    # label masks
     cv2.putText(mask_color_bgr, "After color filter", (5, 20),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
     cv2.putText(mask_morph_bgr, "After morphology", (5, 20),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
 
-    # Resize all to same height for side-by-side display
+    # resize all to same height for side-by-side display
     h = display.shape[0]
     def resize_h(im, height):
         scale = height / im.shape[0]
@@ -101,18 +101,18 @@ def debug_image(img_path, bbox_true):
     print(f"  Saved → {out_path}")
 
 
-# ── Main ───────────────────────────────────────────────────────────────────────
+# ── Main ──
 items = list(ground_truth.items())
 
 if len(sys.argv) == 2:
     arg = sys.argv[1]
     if arg == "zeros":
-        # Only show images that scored 0
+        # only show images that scored 0
         items = [(p, b) for p, b in items
                  if iou(cd_color_segmentation(cv2.imread(p), None), b) == 0.0]
         print(f"Showing {len(items)} images with IoU=0")
     else:
-        # Show a specific test number, e.g. "7" → test7.jpg
+        # show a specific test number, e.g. "7" → test7.jpg
         target = f"./test_images_cone/test{arg}.jpg"
         items = [(p, b) for p, b in items if p == target]
         if not items:

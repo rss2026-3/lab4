@@ -1,7 +1,7 @@
 """
 HSV Range Analysis Tool for Cone Detection
--------------------------------------------
-This script samples HSV pixel values from ground-truth cone regions across all
+
+Samples HSV pixel values from ground-truth cone regions across all
 test images and reports percentile statistics. Use the output to set data-driven
 thresholds in color_segmentation.py instead of guessing.
 
@@ -33,7 +33,7 @@ with open(CSV_PATH) as f:
             print(f"Could not load {img_path}")
             continue
 
-        # Crop to ground-truth bounding box
+        # crop to ground-truth bounding box
         cone_crop = img[y1:y2, x1:x2]
         hsv_crop = cv2.cvtColor(cone_crop, cv2.COLOR_BGR2HSV)
 
@@ -61,7 +61,7 @@ print(f"\nSuggested HSV bounds (2nd–98th percentile of real cone pixels):")
 print(f"  lower_orange = np.array([{h_lo}, {s_lo}, {v_lo}])")
 print(f"  upper_orange = np.array([{h_hi}, {s_hi}, {v_hi}])")
 
-# Save histogram image for report
+# save histogram image for report
 try:
     import matplotlib
     matplotlib.use("Agg")
