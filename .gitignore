@@ -3,3 +3,6 @@ __pycache__/
 *.pyc
 *.npz
 .DS_Store
+*.db3
+*.yaml.lock
+**/homography_bagfiles/

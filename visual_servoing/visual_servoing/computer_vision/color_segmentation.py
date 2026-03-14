@@ -81,3 +81,29 @@ def cd_color_segmentation(img, template):
 
     # Return bounding box
     return bounding_box
+
+
+def cd_color_segmentation_line(img):
+    """
+    Detect orange line/tape on the ground.
+    Input:  img: BGR image (may already be masked with annular ROI)
+    Return: bbox: ((x1,y1),(x2,y2)) bounding box of detected line segment, or None
+    """
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+    lower_orange = np.array([0, 200, 80])
+    upper_orange = np.array([30, 255, 255])
+    mask = cv2.inRange(hsv, lower_orange, upper_orange)
+
+    kernel = np.ones((5, 5), np.uint8)
+    mask = cv2.erode(mask, kernel, iterations=1)
+    mask = cv2.dilate(mask, kernel, iterations=2)
+
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    if not contours:
+        return None
+
+    largest = max(contours, key=cv2.contourArea)
+    x, y, w, h = cv2.boundingRect(largest)
+    return ((x, y), (x + w, y + h))

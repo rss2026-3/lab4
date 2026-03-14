@@ -1,0 +1,23 @@
+<launch>
+
+  <!-- Launch the line following controller on the real robot. Same as parking_deploy but with line_following enabled and reduced parking_distance. -->
+  <node pkg="wall_follower" name="safety_controller" exec="safety_controller" output="screen">
+  </node>
+
+  <node pkg="visual_servoing" name="parking_controller" exec="parking_controller" output="screen">
+  	<param name="drive_topic" value="/vesc/low_level/input/navigation" />
+  	<param name="parking_distance" value="0.15" />
+  	<param name="line_following" value="true" />
+  	<param name="max_speed" value="0.5" />
+  </node>
+
+  <node pkg="visual_servoing" name="cone_detector" exec="cone_detector" output="screen">
+  	<param name="line_following" value="true" />
+  </node>
+
+  <node pkg="visual_servoing" name="homography_transformer" exec="homography_transformer" output="screen">
+  </node>
+
+  <node pkg="image_transport" name="republish" exec="republish" args="raw in:=/cone_debug_img out:=/cone_debug_img_compressed" output="screen"></node>
+
+</launch>

@@ -36,12 +36,20 @@ class ParkingController(Node):
            ConeLocation, "/relative_cone", self.relative_cone_callback, 1)
 
 
-       self.parking_distance = .5  #can be changed 
+       self.declare_parameter("parking_distance", 0.5)
+       self.parking_distance = self.get_parameter("parking_distance").value
+
+       self.declare_parameter("line_following", False)
+       self.line_following = self.get_parameter("line_following").value
+
+       self.declare_parameter("max_speed", 1.0)
+       self.max_speed = self.get_parameter("max_speed").value
+
        self.relative_x = 0
        self.relative_y = 0
 
-
-       self.get_logger().info("Parking Controller Initialized")
+       mode = "line following" if self.line_following else "cone parking"
+       self.get_logger().info(f"Parking Controller Initialized (mode: {mode}, max_speed: {self.max_speed})")
 
 
    def relative_cone_callback(self, msg):
@@ -62,17 +70,22 @@ class ParkingController(Node):
 
        # Steering: proportional to angle toward cone
        Ksteering = 1
-       K_speed = 0.5
 
 
        drive_cmd.drive.steering_angle = float(np.clip(Ksteering * angle_to_cone, -0.34, 0.34))
 
 
-       if abs(angle_to_cone) > np.pi / 3:
-           speed = 0.2 * np.sign(distance_error)   
+       if self.line_following:
+           # Constant forward speed, slow down on sharp turns
+           turn_factor = 1.0 - 0.5 * min(abs(angle_to_cone) / (np.pi / 3), 1.0)
+           speed = self.max_speed * turn_factor
        else:
-           speed = K_speed * distance_error
-       drive_cmd.drive.speed = float(np.clip(speed, -1.0, 1.0))
+           K_speed = 0.5
+           if abs(angle_to_cone) > np.pi / 3:
+               speed = 0.2 * np.sign(distance_error)
+           else:
+               speed = K_speed * distance_error
+       drive_cmd.drive.speed = float(np.clip(speed, -self.max_speed, self.max_speed))
 
        #################################
 
