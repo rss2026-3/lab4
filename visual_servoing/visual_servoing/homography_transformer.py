@@ -21,10 +21,12 @@ from vs_msgs.msg import ConeLocation, ConeLocationPixel
 
 ######################################################
 # DUMMY POINTS -- ENTER YOUR MEASUREMENTS HERE
-PTS_IMAGE_PLANE = [[-1, -1],
-                   [-1, -1],
-                   [-1, -1],
-                   [-1, -1]]  # dummy points
+PTS_IMAGE_PLANE = [[582, 183],
+                   [325, 191],
+                   [109, 214],
+                   [639, 246],
+                   [479, 198],
+                   [464, 335]]  # dummy points
 ######################################################
 
 # PTS_GROUND_PLANE units are in inches
@@ -32,10 +34,12 @@ PTS_IMAGE_PLANE = [[-1, -1],
 
 ######################################################
 # DUMMY POINTS -- ENTER YOUR MEASUREMENTS HERE
-PTS_GROUND_PLANE = [[-1, -1],
-                    [-1, -1],
-                    [-1, -1],
-                    [-1, -1]]  # dummy points
+PTS_GROUND_PLANE = [[87.01, -57.87],
+                    [75.98, 0],
+                    [50.0, 25.2],
+                    [35.83, -20.87],
+                    [64.17, -20.47],
+                    [24.41, -3.94]]  # dummy points
 ######################################################
 
 METERS_PER_INCH = 0.0254

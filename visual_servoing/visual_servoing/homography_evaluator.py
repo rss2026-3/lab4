@@ -13,9 +13,11 @@ Usage:
 """
 
 import sys
+import os
 import argparse
 import numpy as np
 import cv2
+import matplotlib.pyplot as plt
 from rclpy.serialization import deserialize_message
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
@@ -89,6 +91,7 @@ def main():
 
     # Run pipeline on each frame
     predictions = []
+    prediction_frames = []
     for i, image in enumerate(images):
         bounding_box = cd_color_segmentation(image, None)
         if bounding_box is not None:
@@ -97,6 +100,7 @@ def main():
             v = float(y2)
             x, y = transform_uv_to_xy(h, u, v)
             predictions.append((x, y))
+            prediction_frames.append(i + 1)
             print(f"Frame {i+1}: pixel=({u:.0f}, {v:.0f}) -> x={x:.4f}m, y={y:.4f}m")
         else:
             print(f"Frame {i+1}: no cone detected")
@@ -129,6 +133,34 @@ def main():
         print(f"Euclidean distance error: {error:.4f}m")
 
     print(f"{'='*50}")
+
+    # Generate prediction-over-time charts
+    bag_name = os.path.basename(os.path.normpath(args.bag_path))
+    chart_path = f"{bag_name}_predictions.png"
+
+    fig, (ax_x, ax_y) = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
+
+    ax_x.plot(prediction_frames, xs, 'o-', label="Predicted x", markersize=3)
+    if has_measurement:
+        ax_x.axhline(y=measured_x, color='r', linestyle='--', label=f"Measured x ({measured_x:.4f}m)")
+    ax_x.set_ylabel("x (meters)")
+    ax_x.set_title("Predicted x over time")
+    ax_x.legend()
+    ax_x.grid(True, alpha=0.3)
+
+    ax_y.plot(prediction_frames, ys, 'o-', label="Predicted y", markersize=3)
+    if has_measurement:
+        ax_y.axhline(y=measured_y, color='r', linestyle='--', label=f"Measured y ({measured_y:.4f}m)")
+    ax_y.set_ylabel("y (meters)")
+    ax_y.set_xlabel("Frame")
+    ax_y.set_title("Predicted y over time")
+    ax_y.legend()
+    ax_y.grid(True, alpha=0.3)
+
+    fig.suptitle(f"Homography predictions: {bag_name}", fontsize=14)
+    fig.tight_layout()
+    fig.savefig(chart_path, dpi=150)
+    print(f"\nChart saved to {chart_path}")
 
 
 if __name__ == "__main__":
