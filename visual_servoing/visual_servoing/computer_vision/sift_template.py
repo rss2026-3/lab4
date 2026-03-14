@@ -39,7 +39,7 @@ def cd_sift_ransac(img, template):
             and (x2, y2) is the bottom-right pixel of the box.
     """
     # Minimum number of matching features
-    MIN_MATCH = 10  # Adjust this value as needed
+    MIN_MATCH = 7  # Adjust this value as needed
     # Create SIFT
     sift = cv2.SIFT_create()
 
@@ -59,26 +59,53 @@ def cd_sift_ransac(img, template):
 
     # If enough good matches, find bounding box
     if len(good) > MIN_MATCH:
-        src_pts = np.float32([kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
-        dst_pts = np.float32([kp2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
+        src_pts = np.float32([kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2) #match from template
+        dst_pts = np.float32([kp2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2) #match from img
 
         # Create mask
         M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
         matchesMask = mask.ravel().tolist()
 
+        if M is None or mask is None or np.sum(mask) < 6:
+            return ((0,0),(0,0))
+
+        # print("tranformation matrix: ", M)
+        # print("relevant matches: ", mask)
+
         h, w = template.shape
         pts = np.float32([[0, 0], [0, h-1], [w-1, h-1], [w-1, 0]]).reshape(-1, 1, 2)
 
         ########## YOUR CODE STARTS HERE ##########
+        corners = cv2.perspectiveTransform(pts, M) #apply matrix to boundary of template to map to test img
+        x_coords = corners[:, 0, 0]
+        y_coords = corners[:, 0, 1]
 
-        x_min = y_min = x_max = y_max = 0
+        corners_int = np.int32(corners)
+        area = cv2.contourArea(corners_int)
 
+        _, _, w_box, h_box = cv2.boundingRect(corners_int) 
+
+        if area < 100: #filter out any unreasonable bounding boxes that DEFINETLY wouldnt fit image
+            return ((0, 0), (0, 0))
+
+        if w_box < 20 or h_box < 20:
+            return ((0, 0), (0, 0))
+
+        x_min = x_coords.min()
+        x_max = x_coords.max()
+        y_min = y_coords.min()
+        y_max = y_coords.max()
+
+        vis = img.copy()
+        cv2.rectangle(vis, (int(x_min), int(y_min)), (int(x_max), int(y_max)), (0,255,0), 2)
+        image_print(vis)
         ########### YOUR CODE ENDS HERE ###########
 
         # Return bounding box
         return ((x_min, y_min), (x_max, y_max))
     else:
         print(f"[SIFT] not enough matches; matches: {len(good)}")
+        # image_print(img)
 
         # Return bounding box of area 0 if no match found
         return ((0, 0), (0, 0))
@@ -104,6 +131,7 @@ def cd_template_matching(img, template):
 
     # Keep track of best-fit match
     best_match = None
+    bounding_box = ((0, 0), (0, 0))
 
     # Loop over different scales of image
     for scale in np.linspace(1.5, .5, 50):
@@ -118,10 +146,23 @@ def cd_template_matching(img, template):
         ########## YOUR CODE STARTS HERE ##########
         # Use OpenCV template matching functions to find the best match
         # across template scales.
-
+        
+        result = cv2.matchTemplate(img_canny, resized_template, cv2.TM_CCOEFF_NORMED)
+        (_, max_val, _, max_loc) = cv2.minMaxLoc(result)
+        if best_match == None:
+            best_match = max_val
+            x1, y1 = max_loc
+            bounding_box = ((x1, y1), (x1+w, y1+h))
+        elif best_match < max_val:
+            best_match = max_val
+            x1, y1 = max_loc
+            bounding_box = ((x1, y1), (x1+w, y1+h))
         # Remember to resize the bounding box using the highest scoring scale
         # x1,y1 pixel will be accurate, but x2,y2 needs to be correctly scaled
-        bounding_box = ((0, 0), (0, 0))
+        
         ########### YOUR CODE ENDS HERE ###########
+    # vis = img.copy()
+    # cv2.rectangle(vis, bounding_box[0], bounding_box[1], (0,255,0), 2)
+    # image_print(vis)
 
     return bounding_box
