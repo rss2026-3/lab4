@@ -75,6 +75,9 @@ class ConeDetector(Node):
                 cone_msg.u = u
                 cone_msg.v = v
                 self.cone_pub.publish(cone_msg)
+                self.get_logger().info(f"Line detected: pixel=({u:.0f}, {v:.0f})", throttle_duration_sec=1.0)
+            else:
+                self.get_logger().warn("No orange detected in annular mask", throttle_duration_sec=2.0)
 
             debug_msg = self.bridge.cv2_to_imgmsg(masked_image, "bgr8")
             self.debug_pub.publish(debug_msg)
