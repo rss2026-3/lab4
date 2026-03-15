@@ -1,7 +1,7 @@
 <launch>
 
   <!-- Launch the line following controller on the real robot. Same as parking_deploy but with line_following enabled and reduced parking_distance. -->
-  <node pkg="wall_follower" name="safety_controller" exec="safety_controller" output="screen">
+  <node pkg="safety_controller" name="safety_controller" exec="safety_controller" output="screen">
   </node>
 
   <node pkg="visual_servoing" name="line_follower" exec="line_follower" output="screen">
