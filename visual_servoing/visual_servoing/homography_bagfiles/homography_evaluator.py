@@ -22,8 +22,35 @@ from rclpy.serialization import deserialize_message
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 import rosbag2_py
-from visual_servoing.computer_vision.color_segmentation import cd_color_segmentation
-from visual_servoing.homography_transformer import PTS_IMAGE_PLANE, PTS_GROUND_PLANE, METERS_PER_INCH
+# Copied from homography_transformer.py so this script runs without ROS package install
+PTS_IMAGE_PLANE = [[582, 183], [325, 191], [109, 214], [639, 246], [479, 198], [464, 335], [615, 217], [127, 195]]
+PTS_GROUND_PLANE = [[87.01, -57.87], [75.98, 0], [50.0, 25.2], [35.83, -20.87], [64.17, -20.47], [24.41, -3.94], [51.57, -33.46], [67.32, 35.04]]
+METERS_PER_INCH = 0.0254
+
+
+def cd_color_segmentation(img, template):
+    """Copied from color_segmentation.py so this script runs without ROS package install."""
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    lower_orange = np.array([0, 200, 80])
+    upper_orange = np.array([30, 255, 255])
+    mask = cv2.inRange(hsv, lower_orange, upper_orange)
+
+    kernel = np.ones((5, 5), np.uint8)
+    mask = cv2.erode(mask, kernel, iterations=1)
+    mask = cv2.dilate(mask, kernel, iterations=2)
+
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not contours:
+        return ((0, 0), (0, 0))
+
+    cone_candidates = [c for c in contours
+                       if cv2.boundingRect(c)[2] <= 2.5 * cv2.boundingRect(c)[3]]
+    if not cone_candidates:
+        cone_candidates = contours
+
+    largest = max(cone_candidates, key=cv2.contourArea)
+    x, y, w, h = cv2.boundingRect(largest)
+    return ((x, y), (x + w, y + h))
 
 def build_homography():
     np_pts_ground = np.array(PTS_GROUND_PLANE) * METERS_PER_INCH
