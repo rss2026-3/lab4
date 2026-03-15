@@ -36,7 +36,7 @@ class YoloAnnotatorNode(Node):
             .string_value
         )
         self.conf_threshold = (
-            self.declare_parameter("conf_threshold", 0.5)
+            self.declare_parameter("conf_threshold", 0.85)
             .get_parameter_value()
             .double_value
         )
