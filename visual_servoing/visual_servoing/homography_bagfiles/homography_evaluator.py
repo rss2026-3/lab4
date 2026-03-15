@@ -18,10 +18,9 @@ import argparse
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
+import sqlite3
 from rclpy.serialization import deserialize_message
 from sensor_msgs.msg import Image
-from cv_bridge import CvBridge
-import rosbag2_py
 # Copied from homography_transformer.py so this script runs without ROS package install
 PTS_IMAGE_PLANE = [[582, 183], [325, 191], [109, 214], [639, 246], [479, 198], [464, 335], [615, 217], [127, 195]]
 PTS_GROUND_PLANE = [[87.01, -57.87], [75.98, 0], [50.0, 25.2], [35.83, -20.87], [64.17, -20.47], [24.41, -3.94], [51.57, -33.46], [67.32, 35.04]]
@@ -69,24 +68,41 @@ def transform_uv_to_xy(h, u, v):
     return homogeneous_xy[0, 0], homogeneous_xy[1, 0]
 
 
+def imgmsg_to_cv2_bgr(msg):
+    """Convert sensor_msgs/Image to a BGR numpy array without cv_bridge."""
+    dtype = np.uint8
+    n_channels = {"bgr8": 3, "rgb8": 3, "bgra8": 4, "rgba8": 4, "mono8": 1}.get(msg.encoding, 3)
+    img = np.frombuffer(bytes(msg.data), dtype=dtype).reshape(msg.height, msg.width, n_channels)
+    if msg.encoding in ("rgb8", "rgba8"):
+        img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+    elif msg.encoding == "bgra8":
+        img = img[:, :, :3]
+    return img
+
+
 def read_bag_images(bag_path):
-    reader = rosbag2_py.SequentialReader()
-    storage_options = rosbag2_py.StorageOptions(uri=bag_path, storage_id="sqlite3")
-    converter_options = rosbag2_py.ConverterOptions(
-        input_serialization_format="cdr",
-        output_serialization_format="cdr",
-    )
-    reader.open(storage_options, converter_options)
+    db_files = [
+        os.path.join(bag_path, f)
+        for f in os.listdir(bag_path)
+        if f.endswith(".db3")
+    ]
+    if not db_files:
+        raise FileNotFoundError(f"No .db3 file found in {bag_path}")
 
-    bridge = CvBridge()
     images = []
-
-    while reader.has_next():
-        topic, data, timestamp = reader.read_next()
-        if topic == "/zed/zed_node/rgb/image_rect_color":
-            msg = deserialize_message(data, Image)
-            image = bridge.imgmsg_to_cv2(msg, "bgr8")
-            images.append(image)
+    for db_file in sorted(db_files):
+        conn = sqlite3.connect(db_file)
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT data FROM messages "
+            "JOIN topics ON messages.topic_id = topics.id "
+            "WHERE topics.name = '/zed/zed_node/rgb/image_rect_color' "
+            "ORDER BY messages.timestamp"
+        )
+        for (data,) in cur.fetchall():
+            msg = deserialize_message(bytes(data), Image)
+            images.append(imgmsg_to_cv2_bgr(msg))
+        conn.close()
 
     return images
 
@@ -174,6 +190,10 @@ def main():
     ax_x.set_title("Predicted x over time")
     ax_x.legend()
     ax_x.grid(True, alpha=0.3)
+    if avg_x >= 0:
+        ax_x.set_ylim(bottom=0)
+    else:
+        ax_x.set_ylim(top=0)
 
     ax_y.plot(prediction_frames, ys, 'o-', label="Predicted y", markersize=3)
     if has_measurement:
@@ -183,6 +203,10 @@ def main():
     ax_y.set_title("Predicted y over time")
     ax_y.legend()
     ax_y.grid(True, alpha=0.3)
+    if avg_y >= 0:
+        ax_y.set_ylim(bottom=0)
+    else:
+        ax_y.set_ylim(top=0)
 
     fig.suptitle(f"Homography predictions: {bag_name}", fontsize=14)
     fig.tight_layout()
