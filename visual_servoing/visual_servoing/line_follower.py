@@ -20,7 +20,7 @@ class LineFollower(Node):
    def __init__(self):
        super().__init__("line_follower")
 
-       self.declare_parameter("drive_topic")
+       self.declare_parameter("drive_topic", "/vesc/high_level/input/nav_1")
        DRIVE_TOPIC = self.get_parameter("drive_topic").value
 
        self.declare_parameter("max_speed", 0.5)
@@ -32,8 +32,8 @@ class LineFollower(Node):
        self.create_subscription(
            ConeLocation, "/relative_cone", self.relative_cone_callback, 1)
 
-       self.relative_x = 0
-       self.relative_y = 0
+       self.relative_x = 0.
+       self.relative_y = 0.
        self.drive_cmd = AckermannDriveStamped()
 
        # Publish drive commands at 20Hz to outpace the safety controller's zero stream
