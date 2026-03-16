@@ -38,8 +38,8 @@ class ConeDetector(Node):
 
         # Annular mask for line following (lazy-initialized on first frame)
         self.annular_mask = None
-        self.inner_radius = 200  # px — masks out nearby ground
-        self.outer_radius = 400  # px — masks out far-away region
+        self.inner_radius = 50   # px — masks out ground directly under car
+        self.outer_radius = 700  # px — covers most of the visible ground
 
         mode = "line following" if self.line_following else "cone parking"
         self.get_logger().info(f"Cone Detector Initialized (mode: {mode})")
