@@ -35,6 +35,8 @@ class LineFollower(Node):
        self.relative_x = 0.
        self.relative_y = 0.
        self.drive_cmd = AckermannDriveStamped()
+       self.last_detection_time = self.get_clock().now()
+       self.detection_timeout = 0.5  # seconds without detection before slowing down
 
        # Publish drive commands at 20Hz to outpace the safety controller's zero stream
        self.timer = self.create_timer(1.0 / 20.0, self.timer_callback)
@@ -44,6 +46,7 @@ class LineFollower(Node):
    def relative_cone_callback(self, msg):
        self.relative_x = msg.x_pos
        self.relative_y = msg.y_pos
+       self.last_detection_time = self.get_clock().now()
 
        angle_to_target = np.arctan2(self.relative_y, self.relative_x)
 
@@ -64,6 +67,12 @@ class LineFollower(Node):
            throttle_duration_sec=1.0)
 
    def timer_callback(self):
+       elapsed = (self.get_clock().now() - self.last_detection_time).nanoseconds / 1e9
+       if elapsed > self.detection_timeout:
+           # No detection: keep last steering, ramp speed down to zero
+           fade = max(0.0, 1.0 - (elapsed - self.detection_timeout) / 1.0)
+           self.drive_cmd.drive.speed = float(self.max_speed * 0.3 * fade)
+           self.get_logger().warn(f"No detection for {elapsed:.1f}s, speed={self.drive_cmd.drive.speed:.2f}", throttle_duration_sec=1.0)
        self.drive_pub.publish(self.drive_cmd)
        self.error_publisher()
 
