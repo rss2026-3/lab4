@@ -91,7 +91,7 @@ def cd_color_segmentation_line(img):
     """
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
-    lower_orange = np.array([0, 100, 80])
+    lower_orange = np.array([0, 150, 80])
     upper_orange = np.array([30, 255, 255])
     mask = cv2.inRange(hsv, lower_orange, upper_orange)
 

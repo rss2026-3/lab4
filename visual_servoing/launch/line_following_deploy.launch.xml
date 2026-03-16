@@ -6,7 +6,7 @@
 
   <node pkg="visual_servoing" name="line_follower" exec="line_follower" output="screen">
   	<param name="drive_topic" value="/vesc/low_level/input/navigation" />
-  	<param name="max_speed" value="0.5" />
+  	<param name="max_speed" value="1.0" />
   </node>
 
   <node pkg="visual_servoing" name="cone_detector" exec="cone_detector" output="screen">
