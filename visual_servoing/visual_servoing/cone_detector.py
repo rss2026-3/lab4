@@ -37,9 +37,14 @@ class ConeDetector(Node):
         self.bridge = CvBridge()  # Converts between ROS images and OpenCV Images
 
         # Annular mask for line following (lazy-initialized on first frame)
-        self.annular_mask = None
-        self.inner_radius = 50   # px — masks out ground directly under car
-        self.outer_radius = 700  # px — covers most of the visible ground
+        # Lookahead band: narrow ring at a fixed distance ahead
+        self.lookahead_center = 300  # px — center of lookahead band
+        self.band_width = 100        # px — width of the band
+        self.lookahead_mask = None
+        # Fallback: wide mask if lookahead band misses
+        self.fallback_mask = None
+        self.fallback_inner = 50
+        self.fallback_outer = 700
 
         mode = "line following" if self.line_following else "cone parking"
         self.get_logger().info(f"Cone Detector Initialized (mode: {mode})")
@@ -55,16 +60,30 @@ class ConeDetector(Node):
 
         if self.line_following:
             h, w = image.shape[:2]
+            center = (w // 2, h)
 
-            # Build annular mask once (lazy init based on actual image size)
-            if self.annular_mask is None:
-                self.annular_mask = np.zeros((h, w), dtype=np.uint8)
-                center = (w // 2, h)  # Bottom-center of image
-                cv2.circle(self.annular_mask, center, self.outer_radius, 255, -1)
-                cv2.circle(self.annular_mask, center, self.inner_radius, 0, -1)
+            # Build masks once (lazy init based on actual image size)
+            if self.lookahead_mask is None:
+                inner = max(0, self.lookahead_center - self.band_width // 2)
+                outer = self.lookahead_center + self.band_width // 2
+                self.lookahead_mask = np.zeros((h, w), dtype=np.uint8)
+                cv2.circle(self.lookahead_mask, center, outer, 255, -1)
+                cv2.circle(self.lookahead_mask, center, inner, 0, -1)
 
-            masked_image = cv2.bitwise_and(image, image, mask=self.annular_mask)
+                self.fallback_mask = np.zeros((h, w), dtype=np.uint8)
+                cv2.circle(self.fallback_mask, center, self.fallback_outer, 255, -1)
+                cv2.circle(self.fallback_mask, center, self.fallback_inner, 0, -1)
+
+            # Try narrow lookahead band first
+            masked_image = cv2.bitwise_and(image, image, mask=self.lookahead_mask)
             bounding_box = cd_color_segmentation_line(masked_image)
+
+            # Fallback to wide mask if narrow band misses
+            if bounding_box is None:
+                masked_image = cv2.bitwise_and(image, image, mask=self.fallback_mask)
+                bounding_box = cd_color_segmentation_line(masked_image)
+                if bounding_box is not None:
+                    self.get_logger().info("Fallback: detected in wide mask", throttle_duration_sec=1.0)
 
             if bounding_box is not None:
                 (x1, y1), (x2, y2) = bounding_box
@@ -77,7 +96,7 @@ class ConeDetector(Node):
                 self.cone_pub.publish(cone_msg)
                 self.get_logger().info(f"Line detected: pixel=({u:.0f}, {v:.0f})", throttle_duration_sec=1.0)
             else:
-                self.get_logger().warn("No orange detected in annular mask", throttle_duration_sec=2.0)
+                self.get_logger().warn("No orange detected", throttle_duration_sec=2.0)
 
             debug_msg = self.bridge.cv2_to_imgmsg(masked_image, "bgr8")
             self.debug_pub.publish(debug_msg)
